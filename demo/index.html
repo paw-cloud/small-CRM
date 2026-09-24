@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CRM (demo)</title>
+  <link rel="stylesheet" href="../strona/styles.css">
+  <style>
+    .demo-bar { background: #111; color: #fff; padding: 7px 14px; font: 13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; text-align: center; }
+    .demo-bar b { color: #ffd36b; }
+    .demo-bar code { background: #2b2b2b; padding: 1px 6px; border-radius: 4px; }
+    .demo-bar a { color: #9bbcff; }
+  </style>
+</head>
+<body>
+  <div class="demo-bar">
+    <b>DEMO</b>: wszystkie dane są zmyślone, a baza jest symulowana w Twojej przeglądarce, więc możesz swobodnie klikać. Zmiany znikną po odświeżeniu strony.
+    Po „Wyloguj” kod dostępu to <code>tajnykod123</code>, a kod prywatnych zadań <code>moj-kod-456</code> (adres <code>#/moje</code>).
+    <a href="https://github.com/paw-cloud/small-CRM">Kod i instrukcja na GitHubie</a>
+  </div>
+  <div id="app"><p class="boot">Ładowanie…</p></div>
+  <dialog id="modal"></dialog>
+  <div id="toast" role="status" aria-live="polite"></div><div id="savestate" role="status" aria-live="polite"></div>
+  <script>
+    // Demo: jesteśmy od razu "zalogowani" do symulowanej bazy; prywatne zadania odblokowane (chyba że adres ma ?priv=0)
+    try {
+      sessionStorage.setItem('mockUser', '1');
+      if (!/[?&]priv=0/.test(location.search)) sessionStorage.setItem('mockPrivate', '1');
+      localStorage.setItem('crm_author', 'Demo');
+      localStorage.setItem('crm_install_hide', String(Date.now() + 9e12));
+      localStorage.setItem('crm_backup_snooze', String(Date.now() + 9e12));
+      localStorage.setItem('crm_seen_at', new Date(Date.now() - 5 * 864e5).toISOString());   // "Co nowego" pokazuje zmiany z ostatnich dni
+    } catch (e) { /* bez pamięci przeglądarki demo też działa */ }
+  </script>
+  <script src="mock.js"></script>
+  <script src="demo-data.js"></script>
+  <script src="cfg.js"></script>
+  <script src="../strona/app.js"></script>
+</body>
+</html>

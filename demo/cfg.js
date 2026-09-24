@@ -1,0 +1,1 @@
+window.CRM_CONFIG = { APP_NAME: 'CRM', COMPANY_NAME: 'Twoja Firma', SUPABASE_URL: 'http://mock', SUPABASE_ANON_KEY: 'mock', ACCESS_EMAIL: 'dostep@example.com', PRIVATE_EMAIL: 'prywatne@example.com', POLL_SECONDS: 3600 };

@@ -8,6 +8,10 @@ Nie ma serwera aplikacji, kont użytkowników ani płatnych usług.
 > Kod jest udostępniony w stanie „tak jak jest”, bez gwarancji. Przed przetwarzaniem prawdziwych danych osobowych
 > zapoznaj się z sekcją [Ograniczenia i RODO](#ograniczenia-i-rodo).
 
+**Demo do klikania: <https://paw-cloud.github.io/small-CRM/demo/>** (bez konta i bez konfiguracji; zmyślone dane, baza symulowana w przeglądarce,
+zmiany znikają po odświeżeniu; folder [`demo`](demo)). Demo pokazuje interfejs i funkcje, ale **nie zabezpieczenia bazy** (reguły dostępu sprawdzisz
+na własnym, darmowym projekcie Supabase, zob. „Szybki start”).
+
 ![Pełny widok: lista zapytań z paskiem „Dzisiaj” i otwarte okienko prywatnych zadań „Moje zadania”](zrzuty/00-pelny-widok.png)
 
 *Pełny widok (zmyślone dane): lista zapytań, przyciski „Co nowego” i „Moje zadania” oraz otwarte okienko z prywatnymi zadaniami.*

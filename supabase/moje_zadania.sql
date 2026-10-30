@@ -39,6 +39,8 @@ $$;
 
 alter table public.my_tasks enable row level security;
 revoke all on public.my_tasks from anon;
+-- od 30.10.2026 Supabase nie nadaje uprawnień do nowych tabel automatycznie, więc dajemy je jawnie (reguły RLS poniżej i tak ograniczają to do konta prywatnego)
+grant select, insert, update, delete on public.my_tasks to authenticated;
 
 drop policy if exists my_tasks_owner on public.my_tasks;
 create policy my_tasks_owner on public.my_tasks for all to authenticated

@@ -246,3 +246,12 @@ create policy app_state_all on public.app_state for all to authenticated
 create or replace function public.ping()
 returns timestamptz language sql stable as $$ select now(); $$;
 grant execute on function public.ping() to anon, authenticated;
+
+-- ---------- Uprawnienia do tabel (Data API) --------------------------------
+-- Od 30.10.2026 Supabase nie nadaje już automatycznie dostępu do nowych tabel w schemacie "public"
+-- (nowe projekty, "db reset", gałęzie podglądowe). Bez poniższych linii zalogowane konto dostałoby "permission denied".
+-- Granty są minimalne: "anon" nie dostaje nic, zapytania bez DELETE (jak w regułach powyżej), historia zmian tylko do odczytu.
+-- Dla istniejącej bazy to nic nie zmienia (te uprawnienia już ma). Każda NOWA tabela musi dostać swoje granty w tej samej migracji.
+grant select, insert, update, delete on public.companies, public.contacts, public.notes, public.app_state to authenticated;
+grant select, insert, update on public.inquiries to authenticated;
+grant select on public.audit_log to authenticated;

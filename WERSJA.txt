@@ -1,5 +1,5 @@
 Paczka startowa CRM
-Zbudowano: 2026-09-24 17:28
+Zbudowano: 2026-10-21 21:23
 Wersja aplikacji (skrót pliku app.js): 3b939e062a66
 
 Funkcje: zapytania z grupami i terminami, archiwum, strona klienta (obecnie i archiwalnie), filtr okresu i sortowanie,

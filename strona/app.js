@@ -1513,7 +1513,7 @@
   // wybór okresu i sortowania zostaje zapamiętany na czas pracy w aplikacji
   const defaultPrefs = (mode) => (mode === 'archive'
     ? { q: '', period: 'all', from: '', to: '', sort: 'arch-desc', basis: 'inquiry' }
-    : { q: '', period: 'all', from: '', to: '', sort: 'number-asc', focus: '' });
+    : { q: '', period: 'all', from: '', to: '', sort: 'number-asc', focus: '', group: '' });
   const listPrefs = { active: defaultPrefs('active'), archive: defaultPrefs('archive') };
 
   function periodRange(key, from, to) {
@@ -1692,6 +1692,8 @@
     const range = h('span', { class: 'range' }, 'od ', fromIn, ' do ', toIn);
     const showRange = () => { range.style.display = prefs.period === 'custom' ? 'inline-flex' : 'none'; };
     const sortSel = h('select', { 'aria-label': 'Sortowanie', onchange: () => { prefs.sort = sortSel.value; draw(); } }, opts(archive ? ARCHIVE_SORTS : SORTS, prefs.sort));
+    const groupSel = archive ? null
+      : h('select', { 'aria-label': 'Grupa', onchange: () => { prefs.group = groupSel.value; draw(); } }, opts([['', 'Wszystkie grupy']].concat(Object.entries(STATUS)), prefs.group));
     const basisSel = archive
       ? h('select', { 'aria-label': 'Filtruj według daty', onchange: () => { prefs.basis = basisSel.value; draw(); } }, opts([['inquiry', 'daty zapytania'], ['archive', 'daty archiwizacji']], prefs.basis))
       : null;
@@ -1702,6 +1704,7 @@
         Object.assign(prefs, defaultPrefs(mode));
         search.value = ''; fromIn.value = ''; toIn.value = '';
         periodSel.value = prefs.period; sortSel.value = prefs.sort;
+        if (groupSel) groupSel.value = prefs.group;
         if (basisSel) basisSel.value = prefs.basis;
         showRange(); draw();
       }
@@ -1718,6 +1721,7 @@
       }
       if (prefs.q) parts.push('szukane: „' + prefs.q + '”');
       if (!archive && prefs.focus) parts.push('tylko: ' + FOCUS_LABEL[prefs.focus].toLowerCase());
+      if (!archive && prefs.group) parts.push('grupa: ' + STATUS[prefs.group].toLowerCase());
       return parts.length ? 'FILTR: ' + parts.join(', ') : '';
     };
 
@@ -1727,7 +1731,7 @@
       const [from, to] = periodRange(prefs.period, prefs.from, prefs.to);
       const dateOf = archive && prefs.basis === 'archive' ? archiveDate : inquiryDate;
       return scoped()
-        .filter((it) => (archive || !prefs.focus || focusOf(it) === prefs.focus) && textMatch(it, t) && inPeriod(dateOf(it), from, to))
+        .filter((it) => (archive || !prefs.focus || focusOf(it) === prefs.focus) && (archive || !prefs.group || it.status === prefs.group) && textMatch(it, t) && inPeriod(dateOf(it), from, to))
         .sort(sortComparator(prefs.sort));
     };
 
@@ -1867,7 +1871,7 @@
       const list = visible();
       const total = scoped().length;
       summary.textContent = 'Wyświetlono ' + list.length + ' z ' + total + (archive ? ' zapytań w archiwum' : ' aktualnych zapytań');
-      resetBtn.style.display = (prefs.q || prefs.period !== 'all' || (!archive && prefs.focus)) ? '' : 'none';
+      resetBtn.style.display = (prefs.q || prefs.period !== 'all' || (!archive && (prefs.focus || prefs.group))) ? '' : 'none';
       drawOtherHint();
       if (archive) {
         out.replaceChildren(section('Archiwum', list, 'done'));
@@ -1886,7 +1890,7 @@
           : null;
         out.replaceChildren(
           ...(dueCard ? [dueCard] : []),
-          ...Object.entries(STATUS).map(([k, label]) => section(label, list.filter((i) => i.status === k), k)));
+          ...Object.entries(STATUS).filter(([k]) => !prefs.group || prefs.group === k).map(([k, label]) => section(label, list.filter((i) => i.status === k), k)));
       }
       // wysokość liczymy dopiero, gdy wiersze są już w dokumencie i kolumny mają ostateczną szerokość
       out.querySelectorAll('textarea.next-step').forEach(fitTextarea);
@@ -1896,6 +1900,7 @@
     const toolbar = h('div', { class: 'toolbar filters' },
       search,
       h('label', { class: 'inline' }, 'Okres', periodSel), range,
+      groupSel ? h('label', { class: 'inline' }, 'Grupa', groupSel) : null,
       h('label', { class: 'inline' }, 'Sortuj', sortSel),
       basisSel ? h('label', { class: 'inline' }, 'Filtruj wg', basisSel) : null,
       summary, resetBtn);

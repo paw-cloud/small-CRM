@@ -1507,7 +1507,8 @@
 
   const PERIODS = [['all', 'Wszystkie daty'], ['week', 'Ten tydzień'], ['month', 'Bieżący miesiąc'], ['lastmonth', 'Poprzedni miesiąc'],
     ['last3', 'Ostatnie 3 miesiące'], ['year', 'Bieżący rok'], ['lastyear', 'Poprzedni rok'], ['custom', 'Zakres dat…']];
-  const SORTS = [['number-asc', 'Numer: rosnąco'], ['number-desc', 'Numer: malejąco'], ['date-desc', 'Data zapytania: najnowsze'], ['date-asc', 'Data zapytania: najstarsze']];
+  const SORTS = [['number-asc', 'Numer: rosnąco'], ['number-desc', 'Numer: malejąco'], ['date-desc', 'Data zapytania: najnowsze'], ['date-asc', 'Data zapytania: najstarsze'],
+    ['changed-desc', 'Ostatnia zmiana: najnowsza'], ['changed-asc', 'Ostatnia zmiana: najstarsza']];
   const ARCHIVE_SORTS = [['arch-desc', 'Data archiwizacji: najnowsze'], ['arch-asc', 'Data archiwizacji: najstarsze']].concat(SORTS);
 
   // wybór okresu i sortowania zostaje zapamiętany na czas pracy w aplikacji
@@ -1537,8 +1538,12 @@
     if (!date) return false;
     return (!from || date >= from) && (!to || date <= to);
   };
+  // „Ostatnia zmiana” zapytania: lista zapytań podstawia tu własną funkcję, która uwzględnia też notatki (jak „Bez ruchu”)
+  let activityOf = (it) => Math.max(Date.parse(it.updated_at) || 0, Date.parse(it.created_at) || 0);
   function sortComparator(key) {
     switch (key) {
+      case 'changed-desc': return (a, b) => activityOf(b) - activityOf(a) || byNumber(b, a);
+      case 'changed-asc': return (a, b) => activityOf(a) - activityOf(b) || byNumber(a, b);
       case 'number-desc': return (a, b) => byNumber(b, a);
       case 'date-desc': return (a, b) => inquiryDate(b).localeCompare(inquiryDate(a)) || byNumber(b, a);
       case 'date-asc': return (a, b) => inquiryDate(a).localeCompare(inquiryDate(b)) || byNumber(a, b);
@@ -1675,6 +1680,7 @@
       if (token !== routeToken) return;
     }
     const lastActivity = (it) => Math.max(Date.parse(it.updated_at) || 0, Date.parse(it.created_at) || 0, lastNote.get(it.id) || 0);
+    activityOf = lastActivity;
     // '' | 'late' | 'today' | 'stale' (bez terminu, a ruchu brak od STALE_DAYS dni; zapytania z terminem w przyszłości są „odłożone” celowo)
     const focusOf = (it) => {
       if (it.done) return '';

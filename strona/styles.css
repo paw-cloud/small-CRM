@@ -535,3 +535,111 @@ main > .page-head::after { content: ''; position: absolute; left: 0; right: 0; b
 @media (max-width: 700px) {
   table.inq.arch td:nth-child(6) { display: none; }
 }
+
+/* ---------- Oś czasu: panel nad listą zapytań (od wczoraj, 14 dni). Kolory, czcionka i zaokrąglenia pochodzą ze zmiennych :root powyżej ---------- */
+.os-panel { padding: 0; overflow: hidden; border-top: 3px solid var(--ink); }
+.os-ph { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 12px 16px; }
+.os-ph h2 { margin: 0; font-size: 1.05rem; }
+.os-new { margin-left: 8px; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 1px 8px; border-radius: 999px; background: var(--primary); color: var(--primary-text); vertical-align: 2px; }
+.os-span { font-size: 0.88rem; color: var(--muted); }
+.os-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.os-chips .chip { padding: 5px 9px 5px 13px; }
+.os-grow { flex: 1; }
+.os-pb { padding: 0 16px 16px; }
+.os-pb[hidden] { display: none; }
+
+.os-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0 0 10px; font-size: 0.8rem; color: var(--muted); }
+.os-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.os-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c, var(--muted)); display: inline-block; flex: none; }
+.os-dot.task { background: var(--ink); border-radius: 2px; }
+
+.os-cols { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(112px, 1fr); gap: 6px; overflow-x: auto; padding-bottom: 8px; }
+.os-col { border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); display: flex; flex-direction: column; min-width: 0; }
+.os-col.weekend { background: var(--bg); }
+.os-col.sel { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary); }
+.os-col.over { background: var(--tag-bg); border-style: dashed; border-color: var(--primary); }
+.os-col.late { border-color: var(--danger); }
+/* nazwa dnia = miejsce, w które się klika: jasnoszare tło z delikatnym cieniem, żeby wyglądało na klikalne */
+button.os-ch {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 6px; width: 100%; border: 0; text-align: left; border-radius: 9px 9px 0 0; padding: 8px 9px 6px;
+  background: var(--line); background: color-mix(in srgb, var(--muted) 16%, var(--card));
+  box-shadow: 0 2px 5px rgba(16, 24, 40, 0.16); position: relative; transition: box-shadow 0.15s, filter 0.15s;
+}
+button.os-ch:hover:not(:disabled) { border: 0; filter: brightness(0.96); box-shadow: 0 3px 8px rgba(16, 24, 40, 0.24); }
+/* sobota i niedziela: mała czerwona kreska na górze nagłówka dnia */
+.os-col.weekend button.os-ch::before { content: ''; position: absolute; left: 9px; top: 0; width: 26px; height: 4px; border-radius: 0 0 3px 3px; background: var(--danger); }
+.os-wk { display: inline-block; width: 18px; height: 4px; border-radius: 0 0 3px 3px; background: var(--danger); }
+.os-ch .wd { font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.os-ch .dn { font-size: 1.05rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.os-col.today button.os-ch { background: var(--primary); color: var(--primary-text); }
+.os-col.today .os-ch .wd { color: inherit; opacity: 0.85; }
+.os-col.late .os-ch .wd, .os-col.late .os-ch .dn, .os-col.yday .os-ch .wd, .os-col.yday .os-ch .dn { color: var(--danger); }
+.os-cb { display: grid; gap: 4px; padding: 4px 7px 8px; align-content: start; min-height: 96px; }
+button.os-cc {
+  display: flex; align-items: center; gap: 5px; min-width: 0; font-size: 0.8rem; line-height: 1.25; padding: 3px 6px; border-radius: 6px; width: 100%; text-align: left;
+  border: 1px solid var(--line); border-left: 3px solid var(--c, var(--muted)); background: var(--card);
+}
+button.os-cc:hover:not(:disabled) { background: var(--hover); border-color: var(--line); border-left-color: var(--c, var(--muted)); }
+.os-cc b { font-weight: 800; font-variant-numeric: tabular-nums; }
+.os-cc .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.os-cc.task { border-left-color: var(--ink); }
+.os-cc[draggable="true"] { cursor: grab; }
+.os-cc.drag { opacity: 0.4; }
+.os-more { font-size: 0.74rem; font-weight: 700; color: var(--muted); padding: 0 4px; }
+.os-none { font-size: 0.78rem; color: var(--muted); padding: 2px 4px; }
+.os-hint { margin: 2px 0 12px; font-size: 0.8rem; color: var(--muted); }
+
+.os-detail { border-top: 1px solid var(--line); padding-top: 12px; }
+.os-dh { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; margin: 0 0 8px; }
+.os-dh h3 { margin: 0; font-size: 1rem; }
+.os-dh .pill { font-size: 0.72rem; font-weight: 800; padding: 1px 9px; border-radius: 999px; background: var(--line); color: var(--muted); }
+.os-dh.late h3 { color: var(--danger); }
+.os-dh .rel { font-size: 0.85rem; color: var(--muted); }
+.os-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.os-item {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 12px; align-items: start;
+  background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--c, var(--muted)); border-radius: var(--radius); padding: 10px 12px;
+}
+.os-item.task { --c: var(--ink); }
+.os-item input[type="checkbox"] { width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--primary); cursor: pointer; }
+.os-row1 { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.os-tag { display: inline-flex; align-items: center; gap: 5px; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase; border-radius: 999px; padding: 1px 9px 1px 7px; }
+.os-tag.inq { background: var(--tag-bg); color: var(--tag-text); }
+.os-tag.task { background: var(--ink); color: var(--card); }
+.os-num { font-weight: 800; font-variant-numeric: tabular-nums; }
+.os-client { font-weight: 700; }
+.os-st { display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--muted); }
+.os-step { margin: 2px 0 0; overflow-wrap: anywhere; }
+.os-late { font-size: 0.78rem; font-weight: 700; color: var(--danger); }
+.os-ttl { font-weight: 600; overflow-wrap: anywhere; }
+.os-private { font-size: 0.78rem; color: var(--muted); }
+.os-empty { margin: 0; color: var(--muted); font-size: 0.9rem; }
+
+.os-archive { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; }
+.os-archive[hidden] { display: none; }
+.os-archive h3 { margin: 0 0 8px; font-size: 1rem; }
+.os-ai { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 12px; }
+.os-ai .what { flex: 1 1 260px; min-width: 0; overflow-wrap: anywhere; color: var(--muted); }
+.os-ai .what b { color: var(--text); }
+.os-ai .when { font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+.os-ai button { padding: 3px 10px; font-size: 0.85rem; }
+
+.os-mv { position: relative; }
+.os-mv > summary { list-style: none; border: 1px solid var(--line); background: var(--card); border-radius: 8px; padding: 4px 10px; font-size: 0.85rem; cursor: pointer; white-space: nowrap; user-select: none; }
+.os-mv > summary::-webkit-details-marker { display: none; }
+.os-mv > summary:hover { border-color: var(--muted); }
+.os-mv[open] > summary { border-color: var(--primary); }
+.os-menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; min-width: 190px; padding: 6px; background: var(--card); border: 1px solid var(--primary); border-radius: 8px; box-shadow: 0 8px 24px rgba(10, 14, 20, 0.22); display: grid; gap: 2px; }
+.os-menu button { text-align: left; border: 0; background: transparent; border-radius: 6px; padding: 8px 10px; }
+.os-menu button:hover:not(:disabled) { background: var(--tag-bg); color: var(--tag-text); border: 0; }
+.os-menu label { display: grid; gap: 4px; padding: 6px 10px 4px; font-size: 0.78rem; color: var(--muted); border-top: 1px solid var(--line); margin-top: 4px; }
+
+
+@media (max-width: 640px) {
+  .os-item { grid-template-columns: auto minmax(0, 1fr); }
+  .os-item .os-act { grid-column: 2; }
+  .os-cols { grid-auto-columns: minmax(124px, 1fr); }
+}
+.os-confirm-what { font-weight: 700; }
+.os-ic { display: inline-flex; }
+@media (max-width: 700px) { .os-item input[type="checkbox"] { width: 22px; height: 22px; } }

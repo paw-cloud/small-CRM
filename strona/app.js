@@ -1517,6 +1517,38 @@
     : { q: '', period: 'all', from: '', to: '', sort: 'number-asc', focus: '', group: '' });
   const listPrefs = { active: defaultPrefs('active'), archive: defaultPrefs('archive') };
 
+  // Oś czasu (panel nad listą zapytań): okno od wczoraj na 14 dni, przesuwa się samo; wybór zostaje zapamiętany na czas pracy w aplikacji
+  const OS_FIRST = -1, OS_DAYS = 14, OS_LAST = OS_FIRST + OS_DAYS - 1;
+  const osPrefs = { type: 'all', sel: 0, collapsed: false, archive: false };
+  const osFmt = {
+    wd: new Intl.DateTimeFormat('pl-PL', { weekday: 'short' }),
+    long: new Intl.DateTimeFormat('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' }),
+    when: new Intl.DateTimeFormat('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+  };
+  const OS_ICON = {
+    bell: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>',
+    lock: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>'
+  };
+  const osIcon = (name) => { const s = h('span', { class: 'os-ic', 'aria-hidden': 'true' }); s.innerHTML = OS_ICON[name]; return s; };
+  // menu „Przesuń” zamyka się po kliknięciu poza nim
+  document.addEventListener('click', (e) => { document.querySelectorAll('.os-mv[open]').forEach((d) => { if (!d.contains(e.target)) d.open = false; }); });
+
+  // Okienko z pytaniem (Tak / Anuluj): odhaczenie na osi czasu wymaga potwierdzenia, samo kliknięcie w pole niczego nie zmienia
+  function askConfirm(title, lines, yesLabel) {
+    return new Promise((resolve) => {
+      let result = false;
+      const dlg = h('dialog', { class: 'os-confirm', 'aria-label': title });
+      dlg.append(h('h2', null, title), ...lines.map(([text, cls]) => h('p', { class: cls || null }, text)),
+        h('div', { class: 'form-actions' },
+          h('button', { type: 'button', onclick: () => dlg.close() }, 'Anuluj'),
+          h('button', { type: 'button', class: 'primary', onclick: () => { result = true; dlg.close(); } }, yesLabel)));
+      dlg.addEventListener('close', () => { dlg.remove(); resolve(result); });
+      dlg.addEventListener('click', (ev) => { if (ev.target === dlg) dlg.close(); });
+      document.body.append(dlg);
+      dlg.showModal();
+    });
+  }
+
   function periodRange(key, from, to) {
     const now = new Date();
     const y = now.getFullYear();
@@ -1675,8 +1707,35 @@
         news = { since, log: log || [], notes: notes || [] };
       } catch (_e) { news = null; }
     };
+    // Oś czasu: otwarte i zrobione zadania prywatne (tylko po odblokowaniu) oraz zdjęte terminy z historii zmian (archiwum zrobionych zapytań).
+    // Błąd tych danych nie może zablokować listy.
+    let osOpenTasks = [];
+    let osDoneTasks = [];
+    let osDoneInq = [];
+    const loadOs = async () => {
+      const since = new Date(Date.now() - 30 * 86400000).toISOString();
+      try {
+        if (psb && privateSession) {
+          osOpenTasks = await pq(psb.from('my_tasks').select('*').eq('done', false).order('due_date', { ascending: true }));
+          osDoneTasks = await pq(psb.from('my_tasks').select('*').eq('done', true).gt('done_at', since).order('done_at', { ascending: false }).limit(100));
+        } else { osOpenTasks = []; osDoneTasks = []; }
+      } catch (_e) { osOpenTasks = []; osDoneTasks = []; }
+      try {
+        const log = await q(sb.from('audit_log').select('record_id,changed_by,changed_at,changes').eq('table_name', 'inquiries').eq('action', 'update')
+          .gt('changed_at', since).order('changed_at', { ascending: false }).limit(300));
+        const seen = new Set();
+        osDoneInq = [];
+        (log || []).forEach((e) => {
+          const c = e.changes && e.changes.due_date;
+          if (!c || seen.has(e.record_id)) return;
+          seen.add(e.record_id);   // liczy się najnowsza zmiana terminu danego zapytania
+          const it = items.find((x) => x.id === e.record_id);
+          if (c[0] && !c[1] && it && !it.done && !it.due_date && it.status === 'followup') osDoneInq.push({ it, prev: c[0], at: Date.parse(e.changed_at) || 0 });
+        });
+      } catch (_e) { osDoneInq = []; }
+    };
     if (!archive) {
-      await Promise.all([loadActivity(), loadNews()]);
+      await Promise.all([loadActivity(), loadNews(), loadOs()]);
       if (token !== routeToken) return;
     }
     const lastActivity = (it) => Math.max(Date.parse(it.updated_at) || 0, Date.parse(it.created_at) || 0, lastNote.get(it.id) || 0);
@@ -1873,7 +1932,7 @@
     let seq = 0;   // licznik numeracji porządkowej (Lp.), zerowany przy każdym rysowaniu listy
     function draw() {
       seq = 0;
-      if (!archive) { drawStrip(); updateNewsBtn(); }
+      if (!archive) { drawStrip(); updateNewsBtn(); osDraw(); }
       const list = visible();
       const total = scoped().length;
       summary.textContent = 'Wyświetlono ' + list.length + ' z ' + total + (archive ? ' zapytań w archiwum' : ' aktualnych zapytań');
@@ -1902,6 +1961,181 @@
       out.querySelectorAll('textarea.next-step').forEach(fitTextarea);
     }
 
+    // ---- Oś czasu: panel nad listą. Na osi są zapytania z grupy „Do przypomnienia” z terminem oraz prywatne zadania z terminem (od wczoraj, 14 dni).
+    // Terminy sprzed wczoraj widać tylko na liście i w karcie „Termin dziś lub po terminie”. Zrobione wymaga potwierdzenia w okienku i trafia do archiwum.
+    const osT0 = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
+    const osDay = (off) => { const d = osT0(); d.setDate(d.getDate() + off); return d; };
+    const osOff = (s) => Math.round((new Date(s + 'T00:00:00') - osT0()) / 86400000);
+    const osCap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+    const osClamp = (off) => Math.max(OS_FIRST, Math.min(off, OS_LAST));
+    const osLabel = (x) => (x.kind === 'inq' ? x.it.number : x.t.title);
+    const osDueOf = (x) => (x.kind === 'inq' ? x.it.due_date : x.t.due_date);
+    function osAll() {
+      const out = [];
+      items.forEach((it) => {
+        if (it.done || !it.due_date || it.status !== 'followup') return;
+        const off = osOff(it.due_date);
+        if (off >= OS_FIRST && off <= OS_LAST) out.push({ kind: 'inq', id: it.id, it, off });
+      });
+      osOpenTasks.forEach((t) => {
+        const off = osOff(t.due_date);
+        if (off >= OS_FIRST && off <= OS_LAST) out.push({ kind: 'task', id: t.id, t, off });
+      });
+      return out.sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'inq' ? -1 : 1) || osLabel(a).localeCompare(osLabel(b), 'pl', { numeric: true }));
+    }
+    const osShown = () => osAll().filter((x) => osPrefs.type === 'all' || osPrefs.type === x.kind);
+
+    // zapis terminu: zapytanie przez patchResolving (z ostrzeżeniem o równoczesnej edycji), zadanie przez prywatnego klienta bazy
+    async function osSetDue(x, date) {
+      if (x.kind === 'inq') {
+        const r = await patchResolving('inquiries', x.it, { due_date: date });
+        if (r.theirs) { Object.assign(x.it, r.theirs); toast('Zostawiono wersję innej osoby (zapytanie ' + x.it.number + ').'); } else Object.assign(x.it, { due_date: date, updated_at: r.row.updated_at, updated_by: getAuthor() });
+        watchExpect(sigOfRows(items));
+        draw();
+      } else {
+        await pq(psb.from('my_tasks').update({ due_date: date }).eq('id', x.id));
+        await loadOs();
+        refreshTaskCount();
+        osDraw();
+      }
+    }
+    async function osMove(x, off) {
+      const prev = osDueOf(x), date = ymd(osDay(off));
+      try {
+        await osSetDue(x, date);
+        osPrefs.sel = osClamp(off);
+        osDraw();
+        toast(osLabel(x) + ': nowy termin ' + fmtDayShort(date) + '.', false, {
+          label: 'Cofnij',
+          fn: async () => { try { await osSetDue(x, prev); } catch (ex) { toast(errMsg(ex), true); } osDraw(); }
+        });
+      } catch (ex) { toast(errMsg(ex), true); route(); }
+    }
+    // „Zrobione”: najpierw okienko z pytaniem; zapytanie traci termin (jak przy „✓ Zrobione” na liście), zadanie dostaje datę wykonania
+    async function osDone(x) {
+      const ok = await askConfirm('Potwierdź: zrobione?', [
+        [x.kind === 'inq' ? x.it.number + ' · ' + x.it.client : x.t.title, 'os-confirm-what'],
+        ...(x.kind === 'inq' && x.it.next_step ? [[x.it.next_step, 'muted']] : []),
+        [x.kind === 'inq' ? 'Termin zostanie zdjęty, a pozycja trafi do archiwum zrobionych. Zapytanie zostaje w swojej grupie.' : 'Zadanie trafi do archiwum zrobionych. Możesz je stamtąd przywrócić.', 'muted']
+      ], 'Tak, zrobione');
+      if (!ok) { osDraw(); return; }
+      try {
+        if (x.kind === 'inq') await markDone(x.it, () => { watchExpect(sigOfRows(items)); draw(); loadOs().then(osDraw); });
+        else {
+          await pq(psb.from('my_tasks').update({ done: true, done_at: new Date().toISOString() }).eq('id', x.id));
+          toast('Zadanie zrobione. Znajdziesz je w archiwum zrobionych.');
+          refreshTaskCount();
+          await loadOs();
+          osDraw();
+        }
+      } catch (ex) { toast(errMsg(ex), true); route(); }
+    }
+    async function osRestore(en) {
+      try {
+        if (en.kind === 'task') await pq(psb.from('my_tasks').update({ done: false, done_at: null }).eq('id', en.t.id));
+        else await osSetDue({ kind: 'inq', id: en.it.id, it: en.it }, en.prev);
+        refreshTaskCount();
+        await loadOs();
+        osDraw();
+        toast('Przywrócono: ' + (en.kind === 'task' ? en.t.title : en.it.number) + '.');
+      } catch (ex) { toast(errMsg(ex), true); route(); }
+    }
+    const osArchiveList = () => [
+      ...osDoneTasks.map((t) => ({ kind: 'task', t, at: Date.parse(t.done_at) || 0 })),
+      ...osDoneInq.map((e) => ({ kind: 'inq', it: e.it, prev: e.prev, at: e.at }))
+    ].sort((a, b) => b.at - a.at);
+
+    const osP = archive ? null : { types: h('div', { class: 'os-chips', role: 'group', 'aria-label': 'Co pokazać' }), span: h('span', { class: 'os-span' }),
+      cols: h('div', { class: 'os-cols' }), detail: h('div', { class: 'os-detail' }), archive: h('div', { class: 'os-archive' }) };
+    function osChip(x, off) {
+      const b = h('button', { type: 'button', class: 'os-cc ' + x.kind, style: x.kind === 'inq' ? '--c:var(--st-followup)' : null,
+        title: x.kind === 'inq' ? x.it.client + (x.it.next_step ? ' — ' + x.it.next_step : '') : x.t.title + ' (tylko Ty)', onclick: () => { osPrefs.sel = off; osDraw(); } },
+      x.kind === 'inq' ? h('b', null, x.it.number) : osIcon('lock'), h('span', { class: 't' }, x.kind === 'inq' ? x.it.client.split(' / ').pop() : x.t.title));
+      if (x.kind === 'inq') {
+        b.draggable = true;
+        b.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', x.id); e.dataTransfer.effectAllowed = 'move'; b.classList.add('drag'); });
+        b.addEventListener('dragend', () => b.classList.remove('drag'));
+      }
+      return b;
+    }
+    function osCol(off, wd, dn, list, cls) {
+      const MAX = 4;
+      const col = h('div', { class: 'os-col ' + cls + (osPrefs.sel === off ? ' sel' : '') },
+        h('button', { type: 'button', class: 'os-ch', 'aria-label': wd + ' ' + dn + ': ' + list.length, onclick: () => { osPrefs.sel = off; osDraw(); } },
+          h('span', { class: 'wd' }, wd), h('span', { class: 'dn' }, dn)),
+        h('div', { class: 'os-cb' }, list.slice(0, MAX).map((x) => osChip(x, off)),
+          list.length > MAX ? h('span', { class: 'os-more' }, '+' + (list.length - MAX) + ' więcej') : null,
+          list.length ? null : h('span', { class: 'os-none' }, '—')));
+      col.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; col.classList.add('over'); });
+      col.addEventListener('dragleave', (e) => { if (!col.contains(e.relatedTarget)) col.classList.remove('over'); });
+      col.addEventListener('drop', (e) => {
+        e.preventDefault();
+        col.classList.remove('over');
+        const x = osAll().find((y) => y.kind === 'inq' && y.id === e.dataTransfer.getData('text/plain'));
+        if (x && x.off !== off) osMove(x, off);
+      });
+      return col;
+    }
+    function osItem(x) {
+      const chk = h('input', { type: 'checkbox', class: 'tick', 'aria-label': 'Zrobione: ' + osLabel(x), onchange: (e) => { e.target.checked = false; osDone(x); } });
+      const opt = (label, off) => h('button', { type: 'button', onclick: (e) => { e.target.closest('details').open = false; osMove(x, off); } }, label);
+      const date = h('input', { type: 'date', min: ymd(osT0()), 'aria-label': 'Wybierz datę',
+        onchange: () => { if (!date.value) return; date.closest('details').open = false; osMove(x, osOff(date.value)); } });
+      const mv = h('details', { class: 'os-mv' }, h('summary', null, 'Przesuń'),
+        h('div', { class: 'os-menu' }, x.off !== 0 ? opt('Na dziś', 0) : null, opt('Na jutro', 1), opt('Za tydzień', 7), h('label', null, 'Wybierz datę', date)));
+      const late = x.off < 0 ? h('span', { class: 'os-late' }, 'zaległe od ' + (-x.off) + (x.off === -1 ? ' dnia' : ' dni')) : null;
+      const row1 = x.kind === 'inq'
+        ? h('div', { class: 'os-row1' }, h('span', { class: 'os-tag inq' }, osIcon('bell'), 'Przypomnienie'),
+          h('a', { class: 'os-num', href: '#/inquiries/' + x.it.id }, x.it.number), h('span', { class: 'os-client' }, x.it.client), late)
+        : h('div', { class: 'os-row1' }, h('span', { class: 'os-tag task' }, osIcon('lock'), 'Zadanie'), h('span', { class: 'os-ttl' }, x.t.title), h('span', { class: 'os-private' }, 'tylko Ty'), late);
+      return h('li', { class: 'os-item ' + x.kind, style: x.kind === 'inq' ? '--c:var(--st-followup)' : null },
+        chk, h('div', null, row1, x.kind === 'inq' && x.it.next_step ? h('p', { class: 'os-step' }, x.it.next_step) : null), h('div', { class: 'os-act' }, mv));
+    }
+    function osDraw() {
+      if (!osP || !osP.cols.isConnected) return;
+      const all = osAll(), shown = osShown();
+      const defs = [['all', 'Wszystko', all.length, null], ['inq', 'Przypomnienia', all.filter((x) => x.kind === 'inq').length, 'bell'],
+        ...(privateSession ? [['task', 'Moje zadania', all.filter((x) => x.kind === 'task').length, 'lock']] : [])];
+      if (!defs.some((d) => d[0] === osPrefs.type)) osPrefs.type = 'all';
+      osP.types.replaceChildren(...defs.map(([k, label, n, ic]) => h('button', { type: 'button', class: 'chip' + (osPrefs.type === k ? ' on' : ''), 'aria-pressed': osPrefs.type === k ? 'true' : 'false',
+        onclick: () => { osPrefs.type = k; osDraw(); } }, ic ? osIcon(ic) : null, label, h('span', { class: 'chip-n' }, String(n)))));
+      osP.cols.replaceChildren(...Array.from({ length: OS_DAYS }, (_, i) => {
+        const off = OS_FIRST + i, d = osDay(off), wk = d.getDay() === 0 || d.getDay() === 6;
+        const dn = d.getDate() + (d.getDate() === 1 || off === OS_FIRST || off === 0 ? '.' + pad2(d.getMonth() + 1) : '');
+        return osCol(off, off === -1 ? 'wczoraj' : off === 0 ? 'dziś' : osFmt.wd.format(d).replace('.', ''), dn, shown.filter((x) => x.off === off),
+          (off === 0 ? 'today ' : '') + (off === -1 ? 'yday ' : '') + (wk ? 'weekend' : ''));
+      }));
+      osP.span.textContent = osFmt.wd.format(osDay(OS_FIRST)).replace('.', '') + ' ' + fmtDayShort(ymd(osDay(OS_FIRST))).slice(0, 5) + ' – ' + osFmt.wd.format(osDay(OS_LAST)).replace('.', '') + ' ' + fmtDayShort(ymd(osDay(OS_LAST))).slice(0, 5);
+      const off = osPrefs.sel, list = shown.filter((x) => x.off === off);
+      osP.detail.replaceChildren(
+        h('div', { class: 'os-dh' + (off === -1 ? ' late' : '') }, h('h3', null, osCap(osFmt.long.format(osDay(off)))), h('span', { class: 'pill' }, String(list.length)),
+          h('span', { class: 'rel' }, off === -1 ? 'wczoraj (termin minął)' : off === 0 ? 'dziś' : off === 1 ? 'jutro' : 'za ' + off + ' dni')),
+        list.length ? h('ul', { class: 'os-items' }, list.map(osItem)) : h('p', { class: 'os-empty' }, 'Brak terminów tego dnia.'));
+      const arch = osArchiveList();
+      osP.archBtn.textContent = (osPrefs.archive ? 'Ukryj archiwum' : 'Archiwum zrobionych') + ' (' + arch.length + ')';
+      osP.archive.hidden = !osPrefs.archive;
+      osP.archive.replaceChildren(...(osPrefs.archive ? [h('h3', null, 'Archiwum zrobionych (ostatnie 30 dni)'),
+        arch.length ? h('ul', { class: 'os-items' }, arch.map((en) => h('li', { class: 'os-ai' },
+          h('span', { class: 'os-tag ' + (en.kind === 'task' ? 'task' : 'inq') }, osIcon(en.kind === 'task' ? 'lock' : 'bell'), en.kind === 'task' ? 'Zadanie' : 'Przypomnienie'),
+          h('span', { class: 'what' }, en.kind === 'task' ? en.t.title : [h('b', null, en.it.number + ' '), en.it.client + (en.it.next_step ? ' — ' + en.it.next_step : '')]),
+          h('span', { class: 'when' }, 'zrobione ' + osFmt.when.format(new Date(en.at))),
+          h('button', { type: 'button', onclick: () => osRestore(en) }, 'Przywróć'))))
+          : h('p', { class: 'os-empty' }, 'Nic jeszcze nie zostało zrobione.')] : []));
+    }
+    function osBuild() {
+      const body = h('div', { class: 'os-pb', id: 'os-pb' }, osP.cols,
+        h('p', { class: 'os-hint' }, 'Kliknij dzień albo numer, żeby zobaczyć szczegóły. Na komputerze numer zapytania można przeciągnąć na inny dzień, żeby zmienić termin.'),
+        osP.detail, osP.archive);
+      body.hidden = osPrefs.collapsed;
+      osP.archBtn = h('button', { type: 'button', onclick: () => { osPrefs.archive = !osPrefs.archive; osDraw(); } });
+      const fold = h('button', { type: 'button', 'aria-expanded': String(!osPrefs.collapsed), 'aria-controls': 'os-pb',
+        onclick: () => { osPrefs.collapsed = !osPrefs.collapsed; body.hidden = osPrefs.collapsed; fold.textContent = osPrefs.collapsed ? 'Rozwiń' : 'Zwiń'; fold.setAttribute('aria-expanded', String(!osPrefs.collapsed)); } },
+      osPrefs.collapsed ? 'Rozwiń' : 'Zwiń');
+      return h('section', { class: 'card os-panel', 'aria-label': 'Oś czasu' },
+        h('div', { class: 'os-ph' }, h('h2', null, 'Oś czasu'), osP.span, osP.types, h('span', { class: 'os-grow' }), osP.archBtn, fold), body);
+    }
+    const osPanel = archive ? null : osBuild();
+
     const backupHolder = h('div');
     const toolbar = h('div', { class: 'toolbar filters' },
       search,
@@ -1921,6 +2155,7 @@
       ]),
       archive ? h('p', { class: 'muted archive-note' }, 'Tu trafiają zapytania przeniesione do archiwum. W każdej chwili możesz przywrócić zapytanie do wybranej grupy.') : backupHolder,
       archive ? null : strip,
+      osPanel,
       toolbar,
       otherHint,
       out);
@@ -1935,6 +2170,7 @@
       if (token !== routeToken) return;
       items.length = 0;
       items.push(...fresh);
+      if (!archive) await loadOs();   // po wymianie listy, bo archiwum zrobionych odwołuje się do jej zapytań
       watchExpect(sigOfRows(items));
       toast('Lista odświeżona: dane zostały zmienione przez inną osobę.');
       draw();

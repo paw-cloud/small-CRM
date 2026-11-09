@@ -574,7 +574,7 @@ button.os-ch:hover:not(:disabled) { border: 0; filter: brightness(0.96); box-sha
 .os-col.today button.os-ch { background: var(--primary); color: var(--primary-text); }
 .os-col.today .os-ch .wd { color: inherit; opacity: 0.85; }
 .os-col.late .os-ch .wd, .os-col.late .os-ch .dn, .os-col.yday .os-ch .wd, .os-col.yday .os-ch .dn { color: var(--danger); }
-.os-cb { display: grid; gap: 4px; padding: 4px 7px 8px; align-content: start; min-height: 96px; }
+.os-cb { display: grid; gap: 4px; padding: 4px 7px 8px; align-content: start; min-height: 68px; }   /* miejsce na dwa wiersze; więcej pozycji powiększa komórkę */
 button.os-cc {
   display: flex; align-items: center; gap: 5px; min-width: 0; font-size: 0.8rem; line-height: 1.25; padding: 3px 6px; border-radius: 6px; width: 100%; text-align: left;
   border: 1px solid var(--line); border-left: 3px solid var(--c, var(--muted)); background: var(--card);

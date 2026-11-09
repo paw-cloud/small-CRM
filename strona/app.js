@@ -2059,12 +2059,11 @@
       return b;
     }
     function osCol(off, wd, dn, list, cls) {
-      const MAX = 4;
+      // komórka ma miejsce na dwa wiersze; przy większej liczbie pozycji rośnie (wszystkie komórki w rzędzie dopasowują się do najwyższej)
       const col = h('div', { class: 'os-col ' + cls + (osPrefs.sel === off ? ' sel' : '') },
         h('button', { type: 'button', class: 'os-ch', 'aria-label': wd + ' ' + dn + ': ' + list.length, onclick: () => { osPrefs.sel = off; osDraw(); } },
           h('span', { class: 'wd' }, wd), h('span', { class: 'dn' }, dn)),
-        h('div', { class: 'os-cb' }, list.slice(0, MAX).map((x) => osChip(x, off)),
-          list.length > MAX ? h('span', { class: 'os-more' }, '+' + (list.length - MAX) + ' więcej') : null,
+        h('div', { class: 'os-cb' }, list.map((x) => osChip(x, off)),
           list.length ? null : h('span', { class: 'os-none' }, '—')));
       col.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; col.classList.add('over'); });
       col.addEventListener('dragleave', (e) => { if (!col.contains(e.relatedTarget)) col.classList.remove('over'); });

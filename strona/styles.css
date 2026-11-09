@@ -387,6 +387,8 @@ main > .page-head::after { content: ''; position: absolute; left: 0; right: 0; b
   table.inq tbody td:nth-child(2) a { font-weight: 700; }
   /* nazwa firmy / osoby kontaktowej: pogrubiona i wyśrodkowana */
   table.inq tbody td:nth-child(3) { text-align: center; vertical-align: middle; }
+  /* kraj: wyśrodkowany w poziomie i w pionie (jak numer i klient) */
+  table.inq tbody td:nth-child(4) { text-align: center; vertical-align: middle; }
   /* numer porządkowy (Lp.): mała, wąska kolumna z lewej strony; kursywa, czarna, pogrubiona; numeracja ciągła przez wszystkie grupy */
   table.inq th:first-child, table.inq td.lp { width: 34px; min-width: 34px; padding-left: 8px; padding-right: 2px; text-align: center; vertical-align: middle; }
   table.inq td.lp { font-style: italic; font-weight: 700; font-size: 13px; color: var(--ink); }
